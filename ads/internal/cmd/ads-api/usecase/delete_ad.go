@@ -14,7 +14,7 @@ type (
 	DeleteAdFunc func(ctx context.Context, req DeleteAdRequest) error
 
 	DeleteAdRequest struct {
-		ID 	domain.AdID
+		ID      domain.AdID
 		OwnerID domain.UserID
 	}
 
@@ -30,7 +30,7 @@ func NewDeleteAdFunc(adDAO adsdao.DAO) DeleteAdFunc {
 
 func (uc deleteAd) deleteAd(ctx context.Context, req DeleteAdRequest) error {
 	err := uc.adDAO.DeleteAd(ctx, adsdao.DeleteAdRequest{
-		ID: req.ID,
+		ID:      req.ID,
 		OwnerID: req.OwnerID,
 	})
 	if err != nil {
@@ -39,4 +39,3 @@ func (uc deleteAd) deleteAd(ctx context.Context, req DeleteAdRequest) error {
 
 	return nil
 }
-

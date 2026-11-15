@@ -43,4 +43,3 @@ func (uc getAdByID) getAdByID(ctx context.Context, id domain.AdID) (domain.Ad, e
 
 	return found, nil
 }
-

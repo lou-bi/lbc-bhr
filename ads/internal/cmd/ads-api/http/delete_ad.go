@@ -19,8 +19,8 @@ func handlerDeleteAd(deleteAd usecase.DeleteAdFunc) http.HandlerFunc {
 		}
 
 		err = deleteAd(r.Context(), usecase.DeleteAdRequest{
-			ID:		adID,
-			OwnerID:	middleware.UserIDFromRequest(r),
+			ID:      adID,
+			OwnerID: middleware.UserIDFromRequest(r),
 		})
 		if err != nil {
 			if errors.Is(err, adsdao.ErrNotFound) {

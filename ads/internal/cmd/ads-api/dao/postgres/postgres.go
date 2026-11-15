@@ -188,7 +188,7 @@ func (d *DAO) DeleteAd(ctx context.Context, req adsdao.DeleteAdRequest) error {
 	}
 	// Common drivers will never fail here, so ignoring for now.
 	if n, _ := res.RowsAffected(); n == 0 {
-	    return adsdao.ErrNotFound
+		return adsdao.ErrNotFound
 	}
 	return nil
 }

@@ -16,11 +16,11 @@ func TestDeleteAd(t *testing.T) {
 	ctx := context.Background()
 
 	ucReq := usecase.DeleteAdRequest{
-		ID: 100,
+		ID:      100,
 		OwnerID: "00000000-0000-0000-0000-000000000001",
 	}
 	daoReq := adsdao.DeleteAdRequest{
-		ID: 100,
+		ID:      100,
 		OwnerID: "00000000-0000-0000-0000-000000000001",
 	}
 
