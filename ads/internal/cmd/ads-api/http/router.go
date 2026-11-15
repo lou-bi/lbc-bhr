@@ -11,8 +11,9 @@ import (
 type Usecases struct {
 	ListAds  usecase.ListAdsFunc
 	GetAd    usecase.GetAdByIDFunc
-	CreateAd usecase.CreateAdFunc
-	DeleteAd usecase.DeleteAdFunc
+	CreateAd  usecase.CreateAdFunc
+	ImportAds usecase.ImportAdsFunc
+	DeleteAd  usecase.DeleteAdFunc
 }
 
 // NewRouter wires the routes of the API.
@@ -22,7 +23,7 @@ func NewRouter(usecases Usecases) http.Handler {
 	mux.Handle("GET /ads", handlerListAds(usecases.ListAds))
 	mux.Handle("GET /ads/{adID}", handlerGetAd(usecases.GetAd))
 	mux.Handle("POST /ads", middleware.RequireAuth(handlerCreateAd(usecases.CreateAd)))
-	mux.Handle("POST /ads/import", middleware.RequireAuth(handlerImportAds(usecases.CreateAd)))
+	mux.Handle("POST /ads/import", middleware.RequireAuth(handlerImportAds(usecases.ImportAds)))
 	mux.Handle("DELETE /ads/{adID}", middleware.RequireAuth(handlerDeleteAd(usecases.DeleteAd)))
 
 	mux.HandleFunc("GET /health", func(rw http.ResponseWriter, _ *http.Request) {
