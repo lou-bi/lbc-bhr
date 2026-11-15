@@ -178,6 +178,21 @@ func (d *DAO) CreateAd(ctx context.Context, req adsdao.CreateAdRequest) (domain.
 	return id, nil
 }
 
+// DeleteAd deletes a single ad, or returns dao.ErrNotFound.
+func (d *DAO) DeleteAd(ctx context.Context, req adsdao.DeleteAdRequest) error {
+	const query = `DELETE FROM ads WHERE id = $1 AND user_id = $2`
+
+	res, err := d.runner().ExecContext(ctx, query, int64(req.ID), req.OwnerID)
+	if err != nil {
+		return fmt.Errorf("unable to delete ad: %w", err)
+	}
+	// Common drivers will never fail here, so ignoring for now.
+	if n, _ := res.RowsAffected(); n == 0 {
+	    return adsdao.ErrNotFound
+	}
+	return nil
+}
+
 func scanAd(row *sql.Row) (domain.Ad, error) {
 	var ad domain.Ad
 	if err := row.Scan(&ad.ID, &ad.Title, &ad.Price, &ad.PhotoURL, &ad.UserID, &ad.CreatedAt); err != nil {

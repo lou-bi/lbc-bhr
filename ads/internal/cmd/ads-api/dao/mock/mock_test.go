@@ -101,6 +101,34 @@ func TestMock_CreateAd(t *testing.T) {
 	})
 }
 
+func TestMock_DeleteAd(t *testing.T) {
+	t.Run("returns nil", func(t *testing.T) {
+		m := mock.New(t)
+		req := adsdao.DeleteAdRequest{
+			ID: 102,
+			OwnerID: "00000000-0000-0000-0000-000000000005",
+		}
+		m.On("DeleteAd", ctx, req).Return( nil)
+
+		err := m.DeleteAd(ctx, req)
+
+		require.NoError(t, err)
+
+	})	
+	t.Run("returns ErrNotFound", func(t *testing.T) {
+		m := mock.New(t)
+		req := adsdao.DeleteAdRequest{
+			ID: 102,
+			OwnerID: "00000000-0000-0000-0000-000000000005",
+		}
+		m.On("DeleteAd", ctx, req).Return(adsdao.ErrNotFound)
+
+		err := m.DeleteAd(ctx, req)
+
+		assert.ErrorIs(t, err, adsdao.ErrNotFound)
+	})
+}
+
 func TestMock_Begin(t *testing.T) {
 	t.Run("returns the mock itself as transaction", func(t *testing.T) {
 		m := mock.New(t)

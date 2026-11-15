@@ -179,6 +179,49 @@ func TestCreateAd(t *testing.T) {
 	})
 }
 
+func TestDeleteAd(t *testing.T) {
+	ctx := context.Background()
+	req := adsdao.DeleteAdRequest{ID: 7, OwnerID: "00000000-0000-0000-0000-000000000005"}
+
+	t.Run("deletes the ad", func(t *testing.T) {
+		dao, mock := newMockDAO(t)
+		mock.ExpectExec("DELETE").
+			WithArgs(int64(7), "00000000-0000-0000-0000-000000000005").
+			WillReturnResult(sqlmock.NewResult(0, 1)) // 1 row affected
+
+		err := dao.DeleteAd(ctx, req)
+
+		require.NoError(t, err)
+		require.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("returns ErrNotFound when no row matches", func(t *testing.T) {
+		dao, mock := newMockDAO(t)
+		mock.ExpectExec("DELETE").
+			WithArgs(int64(7), "00000000-0000-0000-0000-000000000005").
+			WillReturnResult(sqlmock.NewResult(0, 0)) // 0 rows affected
+
+		err := dao.DeleteAd(ctx, req)
+
+		assert.ErrorIs(t, err, adsdao.ErrNotFound)
+		require.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("returns error on failure", func(t *testing.T) {
+		dao, mock := newMockDAO(t)
+		boom := errors.New("db down")
+		mock.ExpectExec("DELETE").
+			WithArgs(int64(7), "00000000-0000-0000-0000-000000000005").
+			WillReturnError(boom)
+
+		err := dao.DeleteAd(ctx, req)
+
+		assert.ErrorIs(t, err, boom)
+		assert.NotErrorIs(t, err, adsdao.ErrNotFound)
+		require.NoError(t, mock.ExpectationsWereMet())
+	})
+}
+
 func TestTransaction(t *testing.T) {
 	ctx := context.Background()
 	req := adsdao.CreateAdRequest{
