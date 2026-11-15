@@ -173,6 +173,10 @@ components:
         user_id:
           type: string
           example: "00000000-0000-0000-0000-000000000001"
+        username:
+          type: string
+          description: Nickname of the ad's author. Only returned by GET /ads/{adID}.
+          example: alice
         created_at:
           type: string
           format: date-time

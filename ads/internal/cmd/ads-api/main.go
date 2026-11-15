@@ -9,6 +9,7 @@ import (
 	"github.mpi-internal.com/leboncoin/backend-hiring-assessment/ads/internal/cmd/ads-api/http"
 	"github.mpi-internal.com/leboncoin/backend-hiring-assessment/ads/internal/cmd/ads-api/usecase"
 	"github.mpi-internal.com/leboncoin/backend-hiring-assessment/common/httpserver"
+	usersapi "github.mpi-internal.com/leboncoin/backend-hiring-assessment/users/pkg/api"
 )
 
 func main() {
@@ -26,6 +27,9 @@ func run() error {
 	if err != nil {
 		return err
 	}
+
+	userClient := usersapi.NewClient(cfg.IdentityURL, cfg.IdentityTimeout)
+
 	defer func() {
 		if err := adDAO.Close(); err != nil {
 			slog.Error("unable to close the database", "error", err)
@@ -34,7 +38,7 @@ func run() error {
 
 	router := http.NewRouter(http.Usecases{
 		CreateAd: usecase.NewCreateAdFunc(adDAO),
-		GetAd:    usecase.NewGetAdByIDFunc(adDAO),
+		GetAd:    usecase.NewGetAdByIDFunc(adDAO, userClient),
 		ListAds:  usecase.NewListAdsFunc(adDAO),
 		DeleteAd:  usecase.NewDeleteAdFunc(adDAO),
 	})
