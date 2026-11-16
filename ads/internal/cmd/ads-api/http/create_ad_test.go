@@ -127,6 +127,18 @@ func TestHandlerCreateAd(t *testing.T) {
 		assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
 	})
 
+	t.Run("returns 401 when the owner does not exist", func(t *testing.T) {
+		srv := newCreateAdServer(func(_ context.Context, _ usecase.CreateAdRequest) (domain.AdID, error) {
+			return 0, fmt.Errorf("unable to create ad: %w", usecase.ErrUnknownOwner)
+		})
+		defer srv.Close()
+
+		resp := postJSON(t, srv.URL+"/ads", validBody, "user-1")
+		defer resp.Body.Close()
+
+		assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	})
+
 	t.Run("returns 429 with Retry-After when the quota is exceeded", func(t *testing.T) {
 		srv := newCreateAdServer(func(_ context.Context, _ usecase.CreateAdRequest) (domain.AdID, error) {
 			return 0, fmt.Errorf("unable to create ad: %w", usecase.QuotaExceededError{RetryAfter: 90*time.Second + 500*time.Millisecond})

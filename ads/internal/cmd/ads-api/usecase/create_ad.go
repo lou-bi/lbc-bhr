@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -17,7 +18,7 @@ const (
 )
 
 type (
-	// CreateAdFunc creates an ad owned by the calling user. It fails with QuotaExceededError when the quota is reached.
+	// CreateAdFunc creates an ad owned by the calling user. It fails with QuotaExceededError when the quota is reached, and with ErrUnknownOwner when the owner does not exist.
 	CreateAdFunc func(ctx context.Context, req CreateAdRequest) (domain.AdID, error)
 
 	// CreateAdRequest describes the ad to create. OwnerID is the authenticated user: a caller can never create an ad on behalf of someone else.
@@ -32,6 +33,9 @@ type (
 		adDAO adsdao.DAO
 	}
 )
+
+// ErrUnknownOwner is returned when the owner of the ad does not exist.
+var ErrUnknownOwner = errors.New("unknown owner")
 
 // QuotaExceededError is returned when the user reached the ad quota. RetryAfter is the wait before the next ad can be created.
 type QuotaExceededError struct {
@@ -78,6 +82,10 @@ func (uc createAd) createAd(ctx context.Context, req CreateAdRequest) (domain.Ad
 		PhotoURL:   req.PhotoURL,
 		OwnerID:    req.OwnerID,
 	})
+	if errors.Is(err, adsdao.ErrUnknownOwner) {
+		return 0, fmt.Errorf("unable to create ad: %w", ErrUnknownOwner)
+	}
+
 	if err != nil {
 		return 0, fmt.Errorf("unable to create ad: %w", err)
 	}

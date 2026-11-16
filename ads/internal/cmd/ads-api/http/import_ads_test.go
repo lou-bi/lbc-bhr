@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -112,6 +113,21 @@ func TestHandlerImportAds(t *testing.T) {
 		defer resp.Body.Close()
 
 		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	})
+
+	t.Run("returns 401 when the owner does not exist", func(t *testing.T) {
+		srv := newImportAdsServer(func(_ context.Context, _ usecase.ImportAdsRequest) ([]domain.AdID, error) {
+			return nil, fmt.Errorf("unable to import ad 0: %w", usecase.ErrUnknownOwner)
+		})
+		defer srv.Close()
+
+		body := importAdsBody{Ads: []createAdBody{
+			{Title: "bike", PriceCents: 5000, PhotoURL: "https://example.com/bike.jpg"},
+		}}
+		resp := postJSON(t, srv.URL+"/ads/import", body, "user-1")
+		defer resp.Body.Close()
+
+		assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 	})
 
 	t.Run("returns 500 on usecase error", func(t *testing.T) {

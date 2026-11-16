@@ -43,6 +43,11 @@ func handlerCreateAd(createAd usecase.CreateAdFunc) http.HandlerFunc {
 			OwnerID:    middleware.UserIDFromHeader(r),
 		})
 		if err != nil {
+			if errors.Is(err, usecase.ErrUnknownOwner) {
+				rw.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+
 			var quotaErr usecase.QuotaExceededError
 			if errors.As(err, &quotaErr) {
 				rw.Header().Set("Retry-After", strconv.Itoa(retryAfterSeconds(quotaErr.RetryAfter)))

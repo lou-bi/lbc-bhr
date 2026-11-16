@@ -147,6 +147,20 @@ func TestCreateAd(t *testing.T) {
 		m.AssertNotCalled(t, "Commit")
 	})
 
+	t.Run("error unknown owner", func(t *testing.T) {
+		m := mockdao.New(t)
+		m.On("Begin", ctx).Return(nil)
+		m.On("LockOwner", ctx, ucReq.OwnerID).Return(nil)
+		m.On("CountRecentAds", ctx, ucReq.OwnerID, 24*time.Hour).Return(0, time.Time{}, nil)
+		m.On("CreateAd", ctx, daoReq).Return(domain.AdID(0), adsdao.ErrUnknownOwner)
+		m.On("Rollback").Return(nil)
+
+		_, err := usecase.NewCreateAdFunc(m)(ctx, ucReq)
+
+		assert.ErrorIs(t, err, usecase.ErrUnknownOwner)
+		m.AssertNotCalled(t, "Commit")
+	})
+
 	t.Run("error on commit", func(t *testing.T) {
 		m := mockdao.New(t)
 		commitErr := errors.New("connection reset")

@@ -68,7 +68,7 @@ func TestImportAds(t *testing.T) {
 		assert.Nil(t, got)
 	})
 
-	t.Run("error on create rolls back and never commits", func(t *testing.T) {
+	t.Run("unknown owner rolls back and never commits", func(t *testing.T) {
 		m := mockdao.New(t)
 		m.On("Begin", ctx).Return(nil)
 		m.On("CreateAd", ctx, daoReq(0)).Return(domain.AdID(10), nil)
@@ -78,7 +78,7 @@ func TestImportAds(t *testing.T) {
 		got, err := usecase.NewImportAdsFunc(m)(ctx, req)
 
 		require.Error(t, err)
-		assert.ErrorIs(t, err, adsdao.ErrUnknownOwner)
+		assert.ErrorIs(t, err, usecase.ErrUnknownOwner)
 		assert.Nil(t, got)
 		m.AssertNotCalled(t, "Commit")
 		m.AssertNotCalled(t, "CreateAd", ctx, daoReq(2))

@@ -2,7 +2,7 @@ openapi: "3.0.3"
 
 info:
   title: Ads API
-  description: Classified ads — list, read, and create ads.
+  description: Classified ads — list, read, create, and delete ads.
   version: "1.0.0"
 
 servers:
@@ -62,6 +62,8 @@ paths:
                 $ref: "#/components/schemas/ListAdsResponse"
         "400":
           description: Invalid query parameter (e.g. non-numeric price).
+        "500":
+          description: Unexpected server error.
 
     post:
       summary: Create an ad
@@ -85,7 +87,7 @@ paths:
         "400":
           description: Malformed or unknown request body field.
         "401":
-          description: Missing Authorization header.
+          description: Missing Authorization header, or the user does not exist.
         "429":
           description: The user already created 5 ads within the last 24 hours.
           headers:
@@ -95,6 +97,33 @@ paths:
                 type: integer
         "500":
           description: Unexpected server error.
+
+  /ads/import:
+    post:
+      summary: Import several ads
+      operationId: importAds
+      tags: [ads]
+      security:
+        - userID: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImportAdsBody"
+      responses:
+        "201":
+          description: Ads created in a single transaction, without the ad quota. The body contains the generated identifiers.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportAdsResponse"
+        "400":
+          description: Malformed or unknown request body field.
+        "401":
+          description: Missing Authorization header, or the user does not exist.
+        "500":
+          description: Unexpected server error. No ad is created.
 
   /ads/{adID}:
     get:
@@ -138,15 +167,13 @@ paths:
           example: 1
       responses:
         "204":
-          description: The requested ad.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Ad"
+          description: Ad deleted.
         "400":
           description: adID is not a valid integer.
+        "401":
+          description: Missing Authorization header.
         "404":
-          description: No ad exists with this ID.
+          description: No ad exists with this ID, or it belongs to another user.
         "500":
           description: Unexpected server error.
 components:
@@ -223,3 +250,23 @@ components:
           format: int64
           description: Generated identifier of the new ad.
           example: 42
+
+    ImportAdsBody:
+      type: object
+      properties:
+        ads:
+          type: array
+          items:
+            $ref: "#/components/schemas/CreateAdBody"
+
+    ImportAdsResponse:
+      type: object
+      required: [ids]
+      properties:
+        ids:
+          type: array
+          description: Generated identifiers, in the order of the request.
+          items:
+            type: integer
+            format: int64
+          example: [42, 43]

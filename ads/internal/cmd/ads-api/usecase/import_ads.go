@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	adsdao "github.mpi-internal.com/leboncoin/backend-hiring-assessment/ads/internal/cmd/ads-api/dao"
@@ -10,7 +11,7 @@ import (
 
 type (
 	// ImportAdsFunc creates all the given ads in a single transaction.
-	// It returns the identifiers of the created ads.
+	// It returns the identifiers of the created ads, or ErrUnknownOwner when the owner does not exist.
 	ImportAdsFunc func(ctx context.Context, req ImportAdsRequest) ([]domain.AdID, error)
 
 	// ImportAdsRequest describes the ads to import.
@@ -56,6 +57,10 @@ func (uc importAds) importAds(ctx context.Context, req ImportAdsRequest) ([]doma
 			PhotoURL:   item.PhotoURL,
 			OwnerID:    req.OwnerID,
 		})
+		if errors.Is(err, adsdao.ErrUnknownOwner) {
+			return nil, fmt.Errorf("unable to import ad %d: %w", i, ErrUnknownOwner)
+		}
+
 		if err != nil {
 			return nil, fmt.Errorf("unable to import ad %d: %w", i, err)
 		}
