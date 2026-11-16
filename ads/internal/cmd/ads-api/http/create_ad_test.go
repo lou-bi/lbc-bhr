@@ -5,9 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -123,5 +125,32 @@ func TestHandlerCreateAd(t *testing.T) {
 		defer resp.Body.Close()
 
 		assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
+	})
+
+	t.Run("returns 429 with Retry-After when the quota is exceeded", func(t *testing.T) {
+		srv := newCreateAdServer(func(_ context.Context, _ usecase.CreateAdRequest) (domain.AdID, error) {
+			return 0, fmt.Errorf("unable to create ad: %w", usecase.QuotaExceededError{RetryAfter: 90*time.Second + 500*time.Millisecond})
+		})
+		defer srv.Close()
+
+		resp := postJSON(t, srv.URL+"/ads", validBody, "user-1")
+		defer resp.Body.Close()
+
+		assert.Equal(t, http.StatusTooManyRequests, resp.StatusCode)
+		// The wait is rounded up to whole seconds.
+		assert.Equal(t, "91", resp.Header.Get("Retry-After"))
+	})
+
+	t.Run("Retry-After is at least one second", func(t *testing.T) {
+		srv := newCreateAdServer(func(_ context.Context, _ usecase.CreateAdRequest) (domain.AdID, error) {
+			return 0, usecase.QuotaExceededError{}
+		})
+		defer srv.Close()
+
+		resp := postJSON(t, srv.URL+"/ads", validBody, "user-1")
+		defer resp.Body.Close()
+
+		assert.Equal(t, http.StatusTooManyRequests, resp.StatusCode)
+		assert.Equal(t, "1", resp.Header.Get("Retry-After"))
 	})
 }

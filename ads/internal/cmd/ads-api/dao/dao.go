@@ -2,6 +2,7 @@ package dao
 
 import (
 	"context"
+	"time"
 
 	"github.mpi-internal.com/leboncoin/backend-hiring-assessment/ads/internal/cmd/ads-api/domain"
 )
@@ -16,6 +17,8 @@ type Store interface {
 	SearchAds(ctx context.Context, req SearchAdsRequest) ([]domain.Ad, error)
 	// DeleteAd delete a single ad, or returns ErrNotFound.
 	DeleteAd(ctx context.Context, req DeleteAdRequest) error
+	// CountRecentAds returns how many ads the owner created within the window, and the date of the oldest one (zero if none).
+	CountRecentAds(ctx context.Context, ownerID domain.UserID, window time.Duration) (int, time.Time, error)
 }
 
 // DAO stores and retrieves ads.
@@ -32,6 +35,8 @@ type Tx interface {
 	Commit() error
 	// Rollback discards every change made through the transaction. Calling it on an already committed transaction does nothing, so `defer func() { _ = tx.Rollback() }()` is a safe guard.
 	Rollback() error
+	// LockOwner serializes the transactions of an owner until the transaction ends.
+	LockOwner(ctx context.Context, ownerID domain.UserID) error
 }
 
 // SearchAdsRequest describes an ad search. Nil pointers and empty strings mean "no filter on this field".

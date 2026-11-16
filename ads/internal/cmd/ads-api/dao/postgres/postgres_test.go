@@ -322,3 +322,117 @@ func TestTransaction(t *testing.T) {
 		require.Error(t, dao.Rollback())
 	})
 }
+
+func TestCountRecentAds(t *testing.T) {
+	ctx := context.Background()
+	const window = 24 * time.Hour
+
+	t.Run("returns the count and the oldest creation date", func(t *testing.T) {
+		dao, mock := newMockDAO(t)
+		oldest := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+		mock.ExpectQuery("SELECT count").
+			WithArgs("user-1", window.Seconds()).
+			WillReturnRows(sqlmock.NewRows([]string{"count", "min"}).AddRow(int64(3), oldest))
+
+		count, got, err := dao.CountRecentAds(ctx, "user-1", window)
+
+		require.NoError(t, err)
+		assert.Equal(t, 3, count)
+		assert.Equal(t, oldest, got)
+		require.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("returns a zero date when the owner has no recent ad", func(t *testing.T) {
+		dao, mock := newMockDAO(t)
+		mock.ExpectQuery("SELECT count").
+			WithArgs("user-1", window.Seconds()).
+			WillReturnRows(sqlmock.NewRows([]string{"count", "min"}).AddRow(int64(0), nil))
+
+		count, got, err := dao.CountRecentAds(ctx, "user-1", window)
+
+		require.NoError(t, err)
+		assert.Zero(t, count)
+		assert.True(t, got.IsZero())
+		require.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("runs inside the transaction it is called on", func(t *testing.T) {
+		dao, mock := newMockDAO(t)
+		mock.ExpectBegin()
+		mock.ExpectQuery("SELECT count").
+			WithArgs("user-1", window.Seconds()).
+			WillReturnRows(sqlmock.NewRows([]string{"count", "min"}).AddRow(int64(2), time.Now()))
+		mock.ExpectRollback()
+
+		tx, err := dao.Begin(ctx)
+		require.NoError(t, err)
+
+		count, _, err := tx.CountRecentAds(ctx, "user-1", window)
+
+		require.NoError(t, err)
+		assert.Equal(t, 2, count)
+		require.NoError(t, tx.Rollback())
+		require.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("returns error on failure", func(t *testing.T) {
+		dao, mock := newMockDAO(t)
+		boom := errors.New("db down")
+		mock.ExpectQuery("SELECT count").
+			WithArgs("user-1", window.Seconds()).
+			WillReturnError(boom)
+
+		_, _, err := dao.CountRecentAds(ctx, "user-1", window)
+
+		require.Error(t, err)
+		assert.ErrorIs(t, err, boom)
+		require.NoError(t, mock.ExpectationsWereMet())
+	})
+}
+
+func TestLockOwner(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("locks within the transaction", func(t *testing.T) {
+		dao, mock := newMockDAO(t)
+		mock.ExpectBegin()
+		mock.ExpectExec("SELECT pg_advisory_xact_lock").
+			WithArgs("user-1").
+			WillReturnResult(sqlmock.NewResult(0, 0))
+		mock.ExpectRollback()
+
+		tx, err := dao.Begin(ctx)
+		require.NoError(t, err)
+
+		require.NoError(t, tx.LockOwner(ctx, "user-1"))
+		require.NoError(t, tx.Rollback())
+		require.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("refuses to lock outside a transaction", func(t *testing.T) {
+		dao, mock := newMockDAO(t)
+
+		require.Error(t, dao.LockOwner(ctx, "user-1"))
+		require.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("returns error on failure", func(t *testing.T) {
+		dao, mock := newMockDAO(t)
+		boom := errors.New("db down")
+		mock.ExpectBegin()
+		mock.ExpectExec("SELECT pg_advisory_xact_lock").
+			WithArgs("user-1").
+			WillReturnError(boom)
+		mock.ExpectRollback()
+
+		tx, err := dao.Begin(ctx)
+		require.NoError(t, err)
+
+		err = tx.LockOwner(ctx, "user-1")
+
+		require.Error(t, err)
+		assert.ErrorIs(t, err, boom)
+		require.NoError(t, tx.Rollback())
+		require.NoError(t, mock.ExpectationsWereMet())
+	})
+}

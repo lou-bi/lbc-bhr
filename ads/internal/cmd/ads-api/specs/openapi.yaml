@@ -86,6 +86,13 @@ paths:
           description: Malformed or unknown request body field.
         "401":
           description: Missing Authorization header.
+        "429":
+          description: The user already created 5 ads within the last 24 hours.
+          headers:
+            Retry-After:
+              description: Seconds to wait before creating another ad.
+              schema:
+                type: integer
         "500":
           description: Unexpected server error.
 

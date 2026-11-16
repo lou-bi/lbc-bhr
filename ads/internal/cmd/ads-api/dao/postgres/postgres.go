@@ -193,6 +193,43 @@ func (d *DAO) DeleteAd(ctx context.Context, req adsdao.DeleteAdRequest) error {
 	return nil
 }
 
+// CountRecentAds returns how many ads the owner created within the window, and the date of the oldest one (zero if none).
+func (d *DAO) CountRecentAds(ctx context.Context, ownerID domain.UserID, window time.Duration) (int, time.Time, error) {
+	// The cast is on the parameter so the index can be used.
+	const query = `
+		SELECT count(*), min(created_at)
+		FROM ads
+		WHERE user_id = $1::uuid
+		  AND created_at > now() - make_interval(secs => $2)`
+
+	var (
+		count  int
+		oldest sql.NullTime
+	)
+
+	if err := d.runner().QueryRowContext(ctx, query, string(ownerID), window.Seconds()).Scan(&count, &oldest); err != nil {
+		return 0, time.Time{}, fmt.Errorf("unable to count recent ads: %w", err)
+	}
+
+	return count, oldest.Time, nil
+}
+
+// LockOwner serializes the transactions of an owner until the transaction ends.
+func (d *DAO) LockOwner(ctx context.Context, ownerID domain.UserID) error {
+	if d.tx == nil {
+		return errors.New("unable to lock outside a transaction")
+	}
+
+	// Released by Commit and Rollback.
+	const query = `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`
+
+	if _, err := d.tx.ExecContext(ctx, query, string(ownerID)); err != nil {
+		return fmt.Errorf("unable to lock owner: %w", err)
+	}
+
+	return nil
+}
+
 func scanAd(row *sql.Row) (domain.Ad, error) {
 	var ad domain.Ad
 	if err := row.Scan(&ad.ID, &ad.Title, &ad.Price, &ad.PhotoURL, &ad.UserID, &ad.CreatedAt); err != nil {
